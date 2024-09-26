@@ -93,7 +93,6 @@ function triggerEmojiAnimation(emojiText) {
 async function longPoll(signal) {
   try {
     const timeoutId = setTimeout(() => pollingController.abort(), 300000); // 5-minute timeout
-
     const response = await fetch(pollingUrl, { signal });
 
     clearTimeout(timeoutId);
@@ -111,9 +110,7 @@ async function longPoll(signal) {
       console.warn('Response not OK:', response.status);
     }
   } catch (error) {
-    if (error.name === 'AbortError') {
-      console.warn('Request timed out');
-    } else {
+    if (error.name !== 'AbortError') {
       console.error('Long polling error:', error);
     }
   } finally {
@@ -125,19 +122,16 @@ async function longPoll(signal) {
 
 function showStatusDiv() {
   if (statusDiv) {
-    // If the div already exists, update it
     statusDiv.style.display = 'block';
     statusDiv.innerHTML = `Reactions enabled<br><a href="https://helton.farm/${sessionName}" target="_blank">https://helton.farm/${sessionName}</a>`;
     return;
   }
 
-  // Create the div
   statusDiv = document.createElement('div');
   statusDiv.id = 'status';
   statusDiv.className = 'status';
   statusDiv.innerHTML = `Reactions enabled<br><a href="https://helton.farm/${sessionName}" target="_blank" style="color: #4CAF50; text-decoration: none;">https://helton.farm/${sessionName}</a>`;
 
-  // Add a click event to copy the URL to clipboard
   statusDiv.addEventListener('click', function () {
     const url = `https://bis.dev/${sessionName}`;
     navigator.clipboard.writeText(url).then(function () {
