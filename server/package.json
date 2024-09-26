@@ -1,0 +1,15 @@
+{
+  "name": "live-reactions",
+  "version": "1.0.0",
+  "description": "Send reactions live while streaming",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "allenheltondev",
+  "license": "ISC",
+  "dependencies": {
+    "@gomomento/sdk": "^1.98.1",
+    "handlebars": "^4.7.8"
+  }
+}

@@ -1,0 +1,160 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  Backing service for emoji Chrome extension
+
+Parameters:
+  MomentoApiKey:
+    Type: String
+    NoEcho: true
+  HostedZoneId:
+    Type: String
+
+Metadata:
+  esbuild-properties: &esbuild-properties
+    Format: esm
+    Minify: true
+    OutExtension:
+      - .js=.mjs
+    Target: es2020
+    Sourcemap: false
+    EntryPoints:
+      - index.mjs
+    Banner:
+      - js=import { createRequire } from 'module'; const require = createRequire(import.meta.url);
+    External:
+      - '@aws-sdk/*'
+
+Globals:
+  Function:
+    Runtime: nodejs20.x
+    Architectures:
+      - arm64
+    Tracing: Active
+    Timeout: 15
+    MemorySize: 1024
+    CodeUri: functions
+    Environment:
+      Variables:
+        AWS_NODEJS_CONNECTION_REUSE_ENABLED: 1
+
+Resources:
+  EmojiApi:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      StageName: v1
+      DefinitionBody:
+        'Fn::Transform':
+          Name: AWS::Include
+          Parameters:
+            Location: ./openapi.yaml
+
+  GetReactionsFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        <<: *esbuild-properties
+        EntryPoints:
+          - get-reactions.mjs
+    Properties:
+      Handler: get-reactions.handler
+      Policies:
+        - AWSLambdaBasicExecutionRole
+      Environment:
+        Variables:
+          MOMENTO_API_KEY: !Ref MomentoApiKey
+          CACHE_NAME: bis
+      Events:
+        ApiEvent:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref EmojiApi
+            Path: /{topic}
+            Method: GET
+
+  ForwardMomentoDistribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        DefaultCacheBehavior:
+          AllowedMethods:
+            - GET
+            - HEAD
+            - OPTIONS
+          Compress: False
+          CachePolicyId: 4135ea2d-6df8-44a3-9df3-4b5a84be39ad
+          TargetOriginId: momentoOrigin
+          ViewerProtocolPolicy: redirect-to-https
+          # CachePolicyId: !Ref NoCachingPolicy
+          # OriginRequestPolicyId: !Ref AllViewerExceptHostPolicy
+        DefaultRootObject: index.html
+        Enabled: True
+        PriceClass: PriceClass_100
+        Origins:
+          - Id: momentoOrigin
+            DomainName: api.cache.cell-us-east-1-1.prod.a.momentohq.com
+            OriginPath: /topics/bis
+            CustomOriginConfig:
+              OriginProtocolPolicy: https-only
+            OriginCustomHeaders:
+              - HeaderName: Authorization
+                HeaderValue: !Ref MomentoApiKey
+        ViewerCertificate:
+          AcmCertificateArn: !Ref SubdomainCertificate
+          SslSupportMethod: sni-only
+          MinimumProtocolVersion: TLSv1.2_2021
+        Aliases:
+          - momento.helton.farm
+
+  # NoCachingPolicy:
+  #   Type: AWS::CloudFront::CachePolicy
+  #   Properties:
+  #     CachePolicyConfig:
+  #       Name: NoCachingPolicy
+  #       DefaultTTL: 0
+  #       MaxTTL: 0
+  #       MinTTL: 0
+  #       ParametersInCacheKeyAndForwardedToOrigin:
+  #         CookiesConfig:
+  #           CookieBehavior: none
+  #         HeadersConfig:
+  #           HeaderBehavior: none
+  #         QueryStringsConfig:
+  #           QueryStringBehavior: none
+
+  # AllViewerExceptHostPolicy:
+  #   Type: AWS::CloudFront::OriginRequestPolicy
+  #   Properties:
+  #     OriginRequestPolicyConfig:
+  #       Name: 'AllViewerExceptHostPolicy'
+  #       CookiesConfig:
+  #         CookieBehavior: none
+  #       HeadersConfig:
+  #         HeaderBehavior: allViewerAndWhitelistCloudFront
+  #       QueryStringsConfig:
+  #         QueryStringBehavior: none
+
+  SubdomainCertificate:
+    Type: AWS::CertificateManager::Certificate
+    Properties:
+      DomainName: momento.helton.farm
+      ValidationMethod: DNS
+      DomainValidationOptions:
+        - DomainName: momento.helton.farm
+          HostedZoneId: !Ref HostedZoneId
+
+  Route53RecordSet:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneId: !Ref HostedZoneId
+      Name: momento.helton.farm
+      Type: A
+      AliasTarget:
+        HostedZoneId: Z2FDTNDATAQYW2
+        DNSName: !GetAtt ForwardMomentoDistribution.DomainName
+
+Outputs:
+  ApiBaseUrl:
+    Description: API Gateway endpoint for the community API
+    Value: !Sub 'https://${EmojiApi}.execute-api.${AWS::Region}.amazonaws.com/v1'

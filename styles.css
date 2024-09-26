@@ -1,0 +1,43 @@
+.animated-emoji {
+  position: fixed;
+  bottom: 0;
+  opacity: 1;
+  font-size: 30px;
+  animation: moveUpFadeOut 3.5s forwards;
+  z-index: 9999;
+  pointer-events: none;
+}
+
+@keyframes moveUpFadeOut {
+  0% {
+    bottom: 0;
+    opacity: 1;
+    transform: rotate(0deg);
+  }
+  100% {
+    bottom: 100vh;
+    opacity: 0;
+    transform: rotate(var(--rotation));
+  }
+}
+
+.status {
+  position: fixed;
+  bottom: 10px;
+  right: 10px;
+  background-color: rgba(0, 0, 0, 0.7);
+  color: #fff;
+  padding: 10px;
+  border-radius: 5px;
+  font-family: Arial, sans-serif;
+  font-size: 14px;
+  z-index: 9999;
+  text-align: center;
+  line-height: 1.5;
+  cursor: pointer;
+}
+
+.status a {
+  color: #4CAF50;
+  text-decoration: none;
+}

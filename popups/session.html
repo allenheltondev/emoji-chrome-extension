@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <title>Enter Session Name</title>
+  <style>
+    body {
+      width: 300px;
+      padding: 10px;
+      font-family: Arial, sans-serif;
+    }
+
+    input {
+      width: 100%;
+      padding: 8px;
+      margin-bottom: 10px;
+      border-radius: 5px;
+      border: 1px solid #ccc;
+      box-sizing: border-box;
+    }
+
+    button {
+      width: 100%;
+      padding: 8px;
+      border-radius: 5px;
+      background-color: #4285f4;
+      color: white;
+      border: none;
+      cursor: pointer;
+      font-size: 16px;
+    }
+
+    button:hover {
+      background-color: #357ae8;
+    }
+
+    h2 {
+      margin-top: 0px;
+      margin-bottom: 0px;
+    }
+
+    #error {
+      color: red;
+      display: none;
+    }
+
+    .help-text {
+      font-size: 12px;
+      color: #666;
+      margin-bottom: 10px;
+      font-style: italic;
+    }
+  </style>
+</head>
+
+<body>
+  <h2>Enter session name</h2>
+  <p class="help-text">This will be used for viewers to send reactions your way.</p>
+  <form id="sessionForm">
+    <input type="text" id="sessionName" maxlength="15" placeholder="Max 15 characters, no special chars">
+    <button id="toggleButton">Start</button>
+  </form>
+  <p id="error">Please enter a valid session name (max 15 characters, no special characters).</p>
+  <script src="session.js"></script>
+</body>
+
+</html>

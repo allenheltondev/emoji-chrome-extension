@@ -1,0 +1,24 @@
+{
+  "manifest_version": 3,
+  "name": "Live Emoji Reactions",
+  "version": "1.0",
+  "description": "Animates emoji reactions based on streamer input",
+  "permissions": ["activeTab", "storage"],
+  "host_permissions": [
+    "https://api.cache.cell-us-east-1-1.prod.a.momentohq.com/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "css": ["styles.css"],
+      "js": ["content.js"]
+    }
+  ],
+  "action": {
+    "default_popup": "/popups/session.html",
+    "default_icon": "icon.png"
+  }
+}
