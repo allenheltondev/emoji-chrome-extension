@@ -86,8 +86,6 @@ Resources:
           CachePolicyId: 4135ea2d-6df8-44a3-9df3-4b5a84be39ad
           TargetOriginId: momentoOrigin
           ViewerProtocolPolicy: redirect-to-https
-          # CachePolicyId: !Ref NoCachingPolicy
-          # OriginRequestPolicyId: !Ref AllViewerExceptHostPolicy
         DefaultRootObject: index.html
         Enabled: True
         PriceClass: PriceClass_100
@@ -107,34 +105,6 @@ Resources:
         Aliases:
           - momento.helton.farm
 
-  # NoCachingPolicy:
-  #   Type: AWS::CloudFront::CachePolicy
-  #   Properties:
-  #     CachePolicyConfig:
-  #       Name: NoCachingPolicy
-  #       DefaultTTL: 0
-  #       MaxTTL: 0
-  #       MinTTL: 0
-  #       ParametersInCacheKeyAndForwardedToOrigin:
-  #         CookiesConfig:
-  #           CookieBehavior: none
-  #         HeadersConfig:
-  #           HeaderBehavior: none
-  #         QueryStringsConfig:
-  #           QueryStringBehavior: none
-
-  # AllViewerExceptHostPolicy:
-  #   Type: AWS::CloudFront::OriginRequestPolicy
-  #   Properties:
-  #     OriginRequestPolicyConfig:
-  #       Name: 'AllViewerExceptHostPolicy'
-  #       CookiesConfig:
-  #         CookieBehavior: none
-  #       HeadersConfig:
-  #         HeaderBehavior: allViewerAndWhitelistCloudFront
-  #       QueryStringsConfig:
-  #         QueryStringBehavior: none
-
   SubdomainCertificate:
     Type: AWS::CertificateManager::Certificate
     Properties:
@@ -153,6 +123,79 @@ Resources:
       AliasTarget:
         HostedZoneId: Z2FDTNDATAQYW2
         DNSName: !GetAtt ForwardMomentoDistribution.DomainName
+
+  MomentoCacheDistribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        DefaultCacheBehavior:
+          AllowedMethods:
+            - GET
+            - HEAD
+            - OPTIONS
+          Compress: False
+          CachePolicyId: 4135ea2d-6df8-44a3-9df3-4b5a84be39ad
+          TargetOriginId: momento
+          ViewerProtocolPolicy: redirect-to-https
+          FunctionAssociations:
+            - EventType: viewer-request
+              FunctionARN: !Ref TransformFunction
+        DefaultRootObject: index.html
+        Enabled: True
+        PriceClass: PriceClass_100
+        Origins:
+          - Id: momento
+            DomainName: api.cache.cell-us-east-1-1.prod.a.momentohq.com
+            OriginPath: /cache/bis
+            CustomOriginConfig:
+              OriginProtocolPolicy: https-only
+            OriginCustomHeaders:
+              - HeaderName: Authorization
+                HeaderValue: !Ref MomentoApiKey
+        ViewerCertificate:
+          AcmCertificateArn: !Ref CacheSubdomainCertificate
+          SslSupportMethod: sni-only
+          MinimumProtocolVersion: TLSv1.2_2021
+        Aliases:
+          - cache.helton.farm
+
+  TransformFunction:
+    Type: AWS::CloudFront::Function
+    Properties:
+      AutoPublish: true
+      FunctionCode: |
+        async function handler(event) {
+          const request = event.request;
+          const pieces = request.uri.split('/');
+          const key = pieces[pieces.length - 1];
+
+          request.querystring = `key=${encodeURIComponent(key)}`;
+
+          return request;
+        }
+      FunctionConfig:
+        Runtime: cloudfront-js-2.0
+        Comment: Function to return redirects
+      Name: transform-function
+
+  CacheSubdomainCertificate:
+    Type: AWS::CertificateManager::Certificate
+    Properties:
+      DomainName: cache.helton.farm
+      ValidationMethod: DNS
+      DomainValidationOptions:
+        - DomainName: cache.helton.farm
+          HostedZoneId: !Ref HostedZoneId
+
+  CacheRoute53RecordSet:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneId: !Ref HostedZoneId
+      Name: cache.helton.farm
+      Type: A
+      AliasTarget:
+        HostedZoneId: Z2FDTNDATAQYW2
+        DNSName: !GetAtt MomentoCacheDistribution.DomainName
 
 Outputs:
   ApiBaseUrl:
